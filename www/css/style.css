@@ -1,0 +1,12 @@
+.box {
+    clear: both;
+    margin-bottom: 20px;
+}
+
+
+.box textarea,
+.box input {
+    clear: both;
+    display: block;
+    margin-bottom: 10px;
+}
