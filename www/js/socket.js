@@ -1,5 +1,6 @@
 var _socket;
-var user;
+var userID;
+var userName;
 var prefs;
 var conn;
 var retry_timer;
@@ -31,6 +32,10 @@ function connectSocket(url) {
         if (msgPref == "mentions" && messageText != '') {
             matched = false;
             var prefString = prefs.split(",");
+            if (messageText != undefined && userName != undefined) {
+                messageText = messageText.replace(/<@.*>/, userName);
+                prefString.push('@' + userName);
+            }
             var pstrlen = prefString.length;
             for (i = 0; i < pstrlen; i++) {
                 patt = new RegExp(prefString[i], "g");
@@ -40,8 +45,11 @@ function connectSocket(url) {
                 }
             }
         }
+
         // Translate the message to voice
-        if (message.type == 'message' && user != message.user && matched == true) {
+        if (message.type == 'message' && userID != message.user && matched == true) {
+            var userName = getSlackUser(message.user);
+            messageText = userName + ' says ' + messageText;
             var tts = new GoogleTTS('en');
             tts.play(messageText);
         }
@@ -78,7 +86,8 @@ function reconnectSocket() {
         },
         success: function(data, status, jqxhr) {
             if(data.ok) {
-                user = data.self.id;
+                userName = data.self.name;
+                userID = data.self.id;
                 prefs = data.self.prefs.highlight_words;
                 connectSocket(data.url);
             }
@@ -113,4 +122,26 @@ function heartbeat_cancel_defibrillate() {
 
 function heartbeat_stop() {
     cleartTimeout(heartbeat_timer);
+}
+
+function getSlackUser(uid) {
+    $.ajax({
+        url: "https://slack.com/api/users.list",
+        data: {
+            token: auth.token
+        },
+        success: function(data, status, jqxhr) {
+            if(data.ok) {
+                var memCount = data.members.length;
+                for(var i = 0; i < memCount; i++ ) {
+                    if(data.members[i].id == uid) {
+                        return data.members[i].real_name;
+                    }
+                }
+            }
+            //else {
+            //    $("#api-error").html('<p style="color:red">Invalid slack api token.</p>');
+            //}
+        }
+    });
 }
