@@ -34,10 +34,24 @@
         <h1>Slack Voice</h1>
         <div id="connection-wrapper" class="box">
             <form id="connection">
-                <label>Slack API Key</label>
-                <input type="password" name="authtoken" id="auth-token" size="40"/>
-                <input type="button" id="auth-connect" value="Start">
-                <input type="button" id="auth-disconnect" value="Stop">
+                <div id="apikey">
+                    <label>Slack API Key : </label>
+                    <input type="password" name="authtoken" id="auth-token" size="40"/>
+                    <span id="api-error"></span>
+                </div>
+                <div id="con-status">
+                    Connection Status :
+                </div>
+                <div id="message-conf">
+                    <label id="message-label">Read Messages : </label>
+                    <input type="radio" class="message-type" name="message-type" value="all">All Messages
+                    <input type="radio" class="message-type" name="message-type" value="mentions">Only Mentions
+                    <span id="conf-error"></span>
+                </div>
+                <div class="buttons">
+                    <input type="button" id="auth-connect" value="Start">
+                    <input type="button" id="auth-disconnect" value="Stop">
+                </div>
             </form>
         </div>
         <script type="text/javascript" src="cordova.js"></script>

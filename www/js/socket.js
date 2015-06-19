@@ -1,4 +1,7 @@
 var _socket;
+var user;
+var prefs;
+var conn;
 var retry_timer;
 var heartbeat_timer;
 var ping_counter = 1;
@@ -8,16 +11,37 @@ function connectSocket(url) {
     _socket = new WebSocket(url);
 
     _socket.onopen = function (event) {
-        console.log("Socket open");
         clearTimeout(retry_timer);
         heartbeat_start();
+        $("#apikey").hide();
+        $("#message-conf").hide();
+        $("#con-status").show();
+        $("#con-status").html('<p>Connected</p></p><img src="img/circle_green.png"/>');
+        $("#auth-connect").hide();
+        $("#auth-disconnect").show();
+        conn = true;
     };
     _socket.onmessage = function (event) {
         var message = JSON.parse(event.data);
+        var matched = true;
+        var patt = '';
         heartbeat_beat();
+        var messageText = message.text;
+        var msgPref = $('input[name=message-type]:checked').val();
+        if (msgPref == "mentions" && messageText != '') {
+            matched = false;
+            var prefString = prefs.split(",");
+            var pstrlen = prefString.length;
+            for (i = 0; i < pstrlen; i++) {
+                patt = new RegExp(prefString[i], "g");
+                matched = patt.test(messageText);
+                if (matched) {
+                    break;
+                }
+            }
+        }
         // Translate the message to voice
-        if (message.type == 'message') {
-            var messageText = message.text;
+        if (message.type == 'message' && user != message.user && matched == true) {
             var tts = new GoogleTTS('en');
             tts.play(messageText);
         }
@@ -27,27 +51,25 @@ function connectSocket(url) {
     };
 
     _socket.onerror = function (event) {
-        console.log("Socket error");
-        console.log(JSON.stringify(event));
         setTimeout('reconnectSocket()', 1000);
         heartbeat_stop();
     };
 
     _socket.onclose = function (event) {
-        console.log("Socket closed");
-        console.log(JSON.stringify(event));
-        setTimeout('reconnectSocket()', 1000);
-        heartbeat_stop();
+        if (conn) {
+            setTimeout('reconnectSocket()', 1000);
+            heartbeat_stop();
+        }
     };
 }
 
 function disconnectSocket() {
-    console.log("Disconnecting...");
     _socket.close();
+    localStorage.setItem('auth', '');
+    conn = false;
 }
 
 function reconnectSocket() {
-    console.log("Retrying...");
     retry_timer = setTimeout('reconnectSocket()', 30000);
     $.ajax({
         url: "https://slack.com/api/rtm.start",
@@ -55,8 +77,14 @@ function reconnectSocket() {
             token: auth.token
         },
         success: function(data, status, jqxhr) {
-            console.log(JSON.stringify(data));
-            connectSocket(data.url);
+            if(data.ok) {
+                user = data.self.id;
+                prefs = data.self.prefs.highlight_words;
+                connectSocket(data.url);
+            }
+            else {
+                $("#api-error").html('<p style="color:red">Invalid slack api token.</p>');
+            }
         }
     });
 }
@@ -71,18 +99,15 @@ function heartbeat_beat() {
 }
 
 function heartbeat_check() {
-    console.log("Heartbeat check");
     defibrillate_timer = setTimeout('heartbeat_defibrillate()', 10000);
     _socket.send(JSON.stringify({id: ping_counter++, type: "ping"}));
 }
 
 function heartbeat_defibrillate() {
-    console.log('Defibrillate!');
     setTimeout('reconnectSocket()', 1000);
 }
 
 function heartbeat_cancel_defibrillate() {
-    console.log("Heartbeat check ok");
     clearTimeout(defibrillate_timer);
 }
 
